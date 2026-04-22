@@ -1,113 +1,144 @@
 package handlers
 
 import (
-	"strings"
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"notes-api/models"
 	"strconv"
+	"strings"
+
+	"notes-api/db"
+	"notes-api/models"
 )
 
-var Notes = []models.Note{}
-var ID = 1
+func GetIDFromPath(path string) (int, error) {
+	parts := strings.Split(path, "/")
 
-func GetIDFromPath(path string) (int,error){
-	parts:= strings.Split(path,"/")
-	if len(parts)< 3 {
-		return 0,fmt.Errorf("no id")
+	if len(parts) < 3 {
+		return 0, fmt.Errorf("no id")
 	}
+
 	return strconv.Atoi(parts[2])
 }
 
 func NotesHandler(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
 	if r.Method == "GET" {
-		w.Header().Set("Content-Type","application/json")
-		id, err:=GetIDFromPath(r.URL.Path)
-		if err!=nil{
-			if r.URL.Path=="/notes/" || r.URL.Path == "/notes" {
-				json.NewEncoder(w).Encode(Notes)
+
+		id, err := GetIDFromPath(r.URL.Path)
+
+		if err != nil {
+			if r.URL.Path == "/notes/" || r.URL.Path == "/notes" {
+
+				rows, err := db.DB.Query("SELECT id, text FROM notes")
+				if err != nil {
+					http.Error(w, "DB error", 500)
+					return
+				}
+				defer rows.Close()
+
+				var notes []models.Note
+
+				for rows.Next() {
+					var n models.Note
+					rows.Scan(&n.ID, &n.Text)
+					notes = append(notes, n)
+				}
+
+				json.NewEncoder(w).Encode(notes)
 				return
 			}
-			http.Error(w,"Invalid ID",http.StatusBadRequest)
+
+			http.Error(w, "Invalid ID", 400)
 			return
 		}
-		for _,note:=range Notes {
-			if note.ID == id {
-				json.NewEncoder(w).Encode(note)
-				return
-			}
+
+		var n models.Note
+
+		err = db.DB.QueryRow("SELECT id, text FROM notes WHERE id = ?", id).
+			Scan(&n.ID, &n.Text)
+
+		if err != nil {
+			http.Error(w, "Not found", 404)
+			return
 		}
-		http.Error(w,"Note not Found",http.StatusNotFound)
+
+		json.NewEncoder(w).Encode(n)
 		return
 	}
 
 	if r.Method == "POST" {
+
 		var n models.Note
 
 		err := json.NewDecoder(r.Body).Decode(&n)
 		if err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			http.Error(w, "Invalid JSON", 400)
 			return
 		}
 
-		n.ID = ID
-		ID++
+		result, err := db.DB.Exec("INSERT INTO notes(text) VALUES(?)", n.Text)
+		if err != nil {
+			http.Error(w, "DB error", 500)
+			return
+		}
 
-		Notes = append(Notes, n)
+		id, _ := result.LastInsertId()
+		n.ID = int(id)
 
 		json.NewEncoder(w).Encode(n)
 		return
 	}
 
 	if r.Method == "DELETE" {
-		w.Header().Set("Conetnt-Type","application/json")
-		id,err:=GetIDFromPath(r.URL.Path)
-		if err!=nil {
-			http.Error(w,"Invalid ID",http.StatusBadRequest)
+
+		id, err := GetIDFromPath(r.URL.Path)
+		if err != nil {
+			http.Error(w, "Invalid ID", 400)
 			return
 		}
-		for i,note:=range Notes {
-			if note.ID == id {
-				Notes = append(Notes[:i],Notes[i+1:]...)
-				json.NewEncoder(w).Encode(map[string]string{
-					"message":"Deleted Succesfully",
-				})
-				return
-			}
-		}
-		http.Error(w,"No Note Found",http.StatusNotFound)
-		return
-}
-if r.Method == "PUT" {
 
-	w.Header().Set("Content-Type", "application/json")
-
-	id, err := GetIDFromPath(r.URL.Path)
-	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
-		return
-	}
-
-	var updated models.Note
-
-	err = json.NewDecoder(r.Body).Decode(&updated)
-	if err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	for i, note := range Notes {
-		if note.ID == id {
-
-			Notes[i].Text = updated.Text
-
-			json.NewEncoder(w).Encode(Notes[i])
+		_, err = db.DB.Exec("DELETE FROM notes WHERE id = ?", id)
+		if err != nil {
+			http.Error(w, "DB error", 500)
 			return
 		}
+
+		json.NewEncoder(w).Encode(map[string]string{
+			"message": "Deleted Successfully",
+		})
+		return
 	}
 
-	http.Error(w, "Note not found", http.StatusNotFound)
-	return
-}
+	if r.Method == "PUT" {
+
+		id, err := GetIDFromPath(r.URL.Path)
+		if err != nil {
+			http.Error(w, "Invalid ID", 400)
+			return
+		}
+
+		var updated models.Note
+
+		err = json.NewDecoder(r.Body).Decode(&updated)
+		if err != nil {
+			http.Error(w, "Invalid JSON", 400)
+			return
+		}
+
+		_, err = db.DB.Exec("UPDATE notes SET text = ? WHERE id = ?", updated.Text, id)
+		if err != nil {
+			http.Error(w, "DB error", 500)
+			return
+		}
+
+		updated.ID = id
+
+		json.NewEncoder(w).Encode(updated)
+		return
+	}
+
+	http.Error(w, "Method not allowed", 405)
 }
