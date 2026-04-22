@@ -8,6 +8,7 @@ import (
 
 func main(){
  http.HandleFunc("/notes",handlers.NotesHandler)	
+ http.HandleFunc("/notes/",handlers.NotesHandler)	
  fmt.Println("Server running on :3000")
  http.ListenAndServe(":3000",nil)
 }
