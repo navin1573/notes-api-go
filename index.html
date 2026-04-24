@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tasks</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding-top: 60px;
+    }
+
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: #000;
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px),
+        radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 500px;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .input-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    input {
+      flex: 1;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #111;
+      color: white;
+    }
+
+    button {
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      background: white;
+      color: black;
+      cursor: pointer;
+    }
+
+    .task {
+      background: #111;
+      border: 1px solid #222;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .done {
+      text-decoration: line-through;
+      color: #888;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    #status {
+      text-align: center;
+      margin-bottom: 10px;
+      color: #aaa;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="bg"></div>
+
+<div class="container">
+
+  <!-- AUTH SECTION -->
+  <div id="auth">
+    <h1>Login / Signup</h1>
+
+    <input id="username" placeholder="Username" />
+    <input id="password" type="password" placeholder="Password" />
+
+    <div class="input-box">
+      <button onclick="signup()">Signup</button>
+      <button onclick="login()">Login</button>
+    </div>
+
+    <p id="status"></p>
+  </div>
+
+  <!-- TASK SECTION -->
+  <div id="app" class="hidden">
+    <h1>Tasks</h1>
+
+    <div class="input-box">
+      <input id="text" placeholder="Add a task..." onkeydown="handleEnter(event)" />
+      <button onclick="addTask()">Add</button>
+    </div>
+
+    <div id="tasks"></div>
+  </div>
+
+</div>
+
+<script>
+let USER_ID = null
+
+// signup
+async function signup() {
+  const username = document.getElementById("username").value
+  const password = document.getElementById("password").value
+
+  const res = await fetch("http://localhost:3000/signup", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ username, password })
+  })
+
+  const text = await res.text()
+  status(text)
+}
+
+// login
+async function login() {
+  const username = document.getElementById("username").value
+  const password = document.getElementById("password").value
+
+  const res = await fetch("http://localhost:3000/login", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ username, password })
+  })
+
+  const data = await res.json()
+
+  if (data.user_id) {
+    USER_ID = data.user_id
+    status("Logged in")
+    showApp()
+    fetchTasks()
+  } else {
+    status("Login failed")
+  }
+}
+
+// show tasks UI
+function showApp() {
+  document.getElementById("auth").classList.add("hidden")
+  document.getElementById("app").classList.remove("hidden")
+}
+
+// fetch tasks
+async function fetchTasks() {
+  const res = await fetch(`http://localhost:3000/notes?user_id=${USER_ID}`)
+  const data = await res.json()
+
+  const container = document.getElementById("tasks")
+  container.innerHTML = ""
+
+  data.forEach(task => {
+    const div = document.createElement("div")
+    div.className = "task"
+
+    const isDone = task.text.startsWith("[x] ")
+
+    div.innerHTML = `
+      <div class="left">
+        <input type="checkbox" ${isDone ? "checked" : ""} 
+          onchange="toggleTask(${task.id}, '${task.text}')"/>
+        <span class="${isDone ? "done" : ""}">
+          ${task.text.replace("[x] ", "").replace("[ ] ", "")}
+        </span>
+      </div>
+
+      <button onclick="deleteTask(${task.id})">Delete</button>
+    `
+
+    container.appendChild(div)
+  })
+}
+
+// add
+async function addTask() {
+  const text = document.getElementById("text").value
+  if (!text) return
+
+  await fetch(`http://localhost:3000/notes?user_id=${USER_ID}`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ text: "[ ] " + text })
+  })
+
+  document.getElementById("text").value = ""
+  fetchTasks()
+}
+
+// delete
+async function deleteTask(id) {
+  await fetch(`http://localhost:3000/notes/${id}?user_id=${USER_ID}`, {
+    method: "DELETE"
+  })
+  fetchTasks()
+}
+
+// toggle
+async function toggleTask(id, oldText) {
+  const isDone = oldText.startsWith("[x]")
+  const clean = oldText.replace("[x] ", "").replace("[ ] ", "")
+  const newText = isDone ? "[ ] " + clean : "[x] " + clean
+
+  await fetch(`http://localhost:3000/notes/${id}?user_id=${USER_ID}`, {
+    method: "PUT",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ text: newText })
+  })
+
+  fetchTasks()
+}
+
+// enter key
+function handleEnter(e) {
+  if (e.key === "Enter") addTask()
+}
+
+function status(msg){
+  document.getElementById("status").innerText = msg
+}
+</script>
+
+</body>
+</html>

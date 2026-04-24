@@ -9,6 +9,8 @@ import (
 
 func main(){
 	db.Init()
+ http.HandleFunc("/signup",handlers.SignupHandler)	
+ http.HandleFunc("/login",handlers.LoginHandler)	
  http.HandleFunc("/notes",handlers.NotesHandler)	
  http.HandleFunc("/notes/",handlers.NotesHandler)	
  fmt.Println("Server running on :3000")
