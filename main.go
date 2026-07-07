@@ -16,9 +16,10 @@ func main(){
  http.HandleFunc("/notes",handlers.NotesHandler)	
  http.HandleFunc("/notes/",handlers.NotesHandler)	
  c:=cors.New(cors.Options{
-	 AllowedOrigins: []string{"http://localhost:5173"},
+	 AllowedOrigins: []string{"http://localhost:5173","https://notes-api-go.vercel.app"},
 	 AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
-	 AllowedHeaders: []string{"*"},
+	 AllowedHeaders: []string{  "Content-Type",
+        "Authorization",},
  })
  port := os.Getenv("PORT")
 	if port == "" {

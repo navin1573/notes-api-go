@@ -106,7 +106,6 @@ if r.Method == "GET" {
             }
             defer rows.Close()
 
-            // IMPORTANT: initialize as empty slice
             notes := []models.Note{}
 
             for rows.Next() {
