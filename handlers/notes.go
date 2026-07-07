@@ -89,48 +89,62 @@ func NotesHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-	if r.Method == "GET" {
+if r.Method == "GET" {
 
-		id, err := GetIDFromPath(r.URL.Path)
+    id, err := GetIDFromPath(r.URL.Path)
 
-		if err != nil {
-			if r.URL.Path == "/notes/" || r.URL.Path == "/notes" {
-				rows, err := db.DB.Query("SELECT id, text FROM notes WHERE user_id =?",userID)
-				if err != nil {
-					http.Error(w, "DB error", 500)
-					return
-				}
-				defer rows.Close()
+    if err != nil {
+        if r.URL.Path == "/notes/" || r.URL.Path == "/notes" {
 
-				var notes []models.Note
+            rows, err := db.DB.Query(
+                "SELECT id, text FROM notes WHERE user_id = ?",
+                userID,
+            )
+            if err != nil {
+                http.Error(w, "DB error", 500)
+                return
+            }
+            defer rows.Close()
 
-				for rows.Next() {
-					var n models.Note
-					rows.Scan(&n.ID, &n.Text)
-					notes = append(notes, n)
-				}
+            // IMPORTANT: initialize as empty slice
+            notes := []models.Note{}
 
-				json.NewEncoder(w).Encode(notes)
-				return
-			}
+            for rows.Next() {
+                var n models.Note
 
-			http.Error(w, "Invalid ID", 400)
-			return
-		}
+                err := rows.Scan(&n.ID, &n.Text)
+                if err != nil {
+                    http.Error(w, "DB error", 500)
+                    return
+                }
 
-		var n models.Note
-		err = db.DB.QueryRow("SELECT id, text FROM notes WHERE id = ? AND user_id=?", id,userID).
-			Scan(&n.ID, &n.Text)
+                notes = append(notes, n)
+            }
 
-		if err != nil {
-			http.Error(w, "Not found", 404)
-			return
-		}
+            json.NewEncoder(w).Encode(notes)
+            return
+        }
 
-		json.NewEncoder(w).Encode(n)
-		return
-	}
+        http.Error(w, "Invalid ID", 400)
+        return
+    }
 
+    var n models.Note
+
+    err = db.DB.QueryRow(
+        "SELECT id, text FROM notes WHERE id = ? AND user_id = ?",
+        id,
+        userID,
+    ).Scan(&n.ID, &n.Text)
+
+    if err != nil {
+        http.Error(w, "Not found", 404)
+        return
+    }
+
+    json.NewEncoder(w).Encode(n)
+    return
+}
 	if r.Method == "POST" {
 
 		var n models.Note
