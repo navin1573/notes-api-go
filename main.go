@@ -11,19 +11,19 @@ import (
 
 func main(){
 	db.Init()
- http.HandleFunc("/signup",handlers.SignupHandler)	
- http.HandleFunc("/login",handlers.LoginHandler)	
- http.HandleFunc("/notes",handlers.NotesHandler)	
- http.HandleFunc("/notes/",handlers.NotesHandler)	
+ http.HandleFunc("/signup",handlers.SignupHandler)
+ http.HandleFunc("/login",handlers.LoginHandler)
+ http.HandleFunc("/notes",handlers.NotesHandler)
+ http.HandleFunc("/notes/",handlers.NotesHandler)
  c:=cors.New(cors.Options{
-	 AllowedOrigins: []string{"http://localhost:5173","https://notes-api-go.vercel.app"},
+	 AllowedOrigins: []string{"http://localhost:5173","https://notes-api-go.vercel.app","https://notesapi.navninograph.me"},
 	 AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
 	 AllowedHeaders: []string{  "Content-Type",
         "Authorization",},
  })
  port := os.Getenv("PORT")
 	if port == "" {
-		port = "3000" 
+		port = "3000"
 	}
  fmt.Println("Server running on :"+port)
  http.ListenAndServe(":"+port,c.Handler(http.DefaultServeMux))
