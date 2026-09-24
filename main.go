@@ -15,6 +15,10 @@ func main(){
  http.HandleFunc("/login",handlers.LoginHandler)
  http.HandleFunc("/notes",handlers.NotesHandler)
  http.HandleFunc("/notes/",handlers.NotesHandler)
+ http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+     w.WriteHeader(http.StatusOK)
+     w.Write([]byte("OK"))
+ })
  c:=cors.New(cors.Options{
 	 AllowedOrigins: []string{"http://localhost:5173","https://notes-api-go.vercel.app","https://notesapi.navinograph.me"},
 	 AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
